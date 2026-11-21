@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestor de Colección de Videojuegos</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- TEMA: se aplica antes de pintar la página para evitar un "parpadeo" de colores -->
+  <script>
+    (function () {
+      var saved = null;
+      try { saved = localStorage.getItem('gameCollectionTheme'); } catch (e) {}
+      var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      document.documentElement.dataset.theme = saved || (prefersLight ? 'light' : 'dark');
+    })();
+  </script>
+</head>
+<body>
+  <!-- ===================== ENCABEZADO ===================== -->
+  <header class="header">
+    <div class="header__brand">
+      <span class="header__logo" aria-hidden="true">🎮</span>
+      <div>
+        <h1 class="header__title">Mi Colección de Videojuegos</h1>
+        <p class="header__subtitle">CRUD con HTML, CSS y JavaScript puro · datos guardados en localStorage</p>
+      </div>
+    </div>
+    <div class="header__right">
+      <!-- Estadísticas rápidas (se llenan desde app.js) -->
+      <div class="stats" id="stats" aria-live="polite"></div>
+      <!-- Botón para alternar entre modo claro y oscuro -->
+      <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Cambiar a modo claro" title="Cambiar tema">
+        <span class="theme-toggle__icon" aria-hidden="true">☀️</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ===================== FORMULARIO (CREATE / UPDATE) ===================== -->
+    <section class="panel panel--form" aria-labelledby="form-title">
+      <h2 class="panel__title" id="form-title">Agregar juego</h2>
+
+      <form id="game-form" class="form" novalidate>
+        <!-- Campo oculto: guarda el id del juego cuando estamos EDITANDO -->
+        <input type="hidden" id="game-id">
+
+        <div class="form__group">
+          <label for="title">Título</label>
+          <input type="text" id="title" placeholder="Ej: Hollow Knight" maxlength="80" required>
+          <small class="form__error" id="title-error"></small>
+        </div>
+
+        <div class="form__group">
+          <label for="platform">Plataforma</label>
+          <select id="platform" required>
+            <option value="">Selecciona una plataforma</option>
+            <option value="PC">PC</option>
+            <option value="Nintendo Switch">Nintendo Switch</option>
+            <option value="PS Vita">PS Vita</option>
+            <option value="PS5">PS5</option>
+            <option value="Xbox">Xbox</option>
+          </select>
+          <small class="form__error" id="platform-error"></small>
+        </div>
+
+        <div class="form__group">
+          <label for="genre">Género</label>
+          <input type="text" id="genre" placeholder="Ej: Metroidvania, RPG, Shooter..." maxlength="40" required>
+          <small class="form__error" id="genre-error"></small>
+        </div>
+
+        <div class="form__group">
+          <label for="status">Estado</label>
+          <select id="status" required>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Jugando">Jugando</option>
+            <option value="Completado">Completado</option>
+          </select>
+        </div>
+
+        <div class="form__actions">
+          <!-- Este botón cambia su texto a "Guardar Cambios" en modo edición -->
+          <button type="submit" id="submit-btn" class="btn btn--primary">Agregar Juego</button>
+          <button type="button" id="cancel-btn" class="btn btn--ghost" hidden>Cancelar edición</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ===================== LISTADO (READ) ===================== -->
+    <section class="panel panel--list" aria-labelledby="list-title">
+      <div class="list-header">
+        <h2 class="panel__title" id="list-title">Mis juegos</h2>
+        <div class="filters">
+          <input type="search" id="search" class="filters__search" placeholder="Buscar por título o género...">
+          <select id="filter-status" class="filters__select" aria-label="Filtrar por estado">
+            <option value="Todos">Todos</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Jugando">Jugando</option>
+            <option value="Completado">Completado</option>
+          </select>
+          <!-- ORDENAMIENTO: criterio con el que se ordenan las tarjetas -->
+          <select id="sort-by" class="filters__select" aria-label="Ordenar juegos">
+            <option value="recientes">Más recientes</option>
+            <option value="alfabetico">Alfabético (A-Z)</option>
+            <option value="estado">Por Estado</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Aquí app.js dibuja las tarjetas de los juegos -->
+      <div id="game-list" class="grid" aria-live="polite"></div>
+
+      <!-- Mensaje amigable cuando no hay registros -->
+      <div id="empty-state" class="empty" hidden>
+        <span class="empty__icon" aria-hidden="true">🕹️</span>
+        <p class="empty__title" id="empty-title">Tu colección está vacía</p>
+        <p class="empty__text" id="empty-text">Agrega tu primer juego con el formulario y aparecerá aquí.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================== MODAL DE CONFIRMACIÓN (DELETE) ===================== -->
+  <div id="confirm-modal" class="modal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__box" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h3 id="modal-title" class="modal__title">¿Eliminar juego?</h3>
+      <p class="modal__text">Vas a eliminar <strong id="modal-game-name"></strong> de forma permanente. Esta acción no se puede deshacer.</p>
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" data-close>Cancelar</button>
+        <button type="button" id="confirm-delete-btn" class="btn btn--danger">Sí, eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notificaciones pequeñas (toast) -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <footer class="footer">Gestor de Colección de Videojuegos · Vanilla JS + localStorage</footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
